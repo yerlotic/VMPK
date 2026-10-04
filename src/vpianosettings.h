@@ -48,11 +48,17 @@ public:
     QString lastOutputBackend() const;
     void setLastOutputBackend(const QString &lastOutputBackend);
 
+    QString lastOutput2Backend() const;
+    void setLastOutput2Backend(const QString &lastOutputBackend);
+
     QString lastInputConnection() const;
     void setLastInputConnection(const QString &lastInputConnection);
 
     QString lastOutputConnection() const;
     void setLastOutputConnection(const QString &lastOutputConnection);
+
+    QString lastOutput2Connection() const;
+    void setLastOutput2Connection(const QString &lastOutputConnection);
 
     bool midiThru() const;
     void setMidiThru(bool midiThru);
@@ -208,8 +214,10 @@ private:
     QByteArray m_state;
     QString m_lastInputBackend;
     QString m_lastOutputBackend;
+    QString m_lastOutput2Backend;
     QString m_lastInputConnection;
     QString m_lastOutputConnection;
+    QString m_lastOutput2Connection;
     bool m_midiThru;
     bool m_advanced;
     bool m_omniMode;

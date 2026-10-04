@@ -38,10 +38,13 @@ public:
 
     void setInput(MIDIInput *in);
     void setOutput(MIDIOutput *out);
+    void setOutput2(MIDIOutput *out);
     void setInputs(QList<MIDIInput *> ins);
     void setOutputs(QList<MIDIOutput *> outs);
+    void setOutputs2(QList<MIDIOutput *> outs);
     MIDIInput *getInput() { return m_midiIn; }
     MIDIOutput *getOutput() { return m_midiOut; }
+    MIDIOutput *getOutput2() { return m_midiOut2; }
     void showEvent(QShowEvent *) override;
 
 public slots:
@@ -50,23 +53,27 @@ public slots:
     void toggledInput(bool state);
     void refreshInputs(int idx);
     void refreshOutputs(int idx);
+    void refreshOutputs2(int idx);
     void configureInput();
     void configureOutput();
+    void configureOutput2();
     void refresh();
     void reopen();
     void accept() override;
     void reject() override;
-    void configureOutputDriverDefaults();
 
 private:
     void refreshInputDrivers(QString id, bool advanced);
     void refreshOutputDrivers(QString id, bool advanced);
+    void refreshOutputDrivers2(QString id, bool advanced);
+    void configureOutputDriverDefaults(MIDIOutput *output);
 
     bool m_settingsChanged;
     Ui::MidiSetupClass ui;
     MIDIInput* m_midiIn, *m_savedIn;
     MIDIOutput* m_midiOut, *m_savedOut;
-    MIDIConnection m_connIn, m_connOut;
+    MIDIOutput* m_midiOut2, *m_savedOut2;
+    MIDIConnection m_connIn, m_connOut, m_connOut2;
 };
 
 #endif /* MIDISETUP_H */

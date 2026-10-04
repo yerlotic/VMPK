@@ -78,8 +78,10 @@ using namespace drumstick::widgets;
 VPiano::VPiano(QWidget *parent, Qt::WindowFlags flags)
     : QMainWindow(parent, flags)
     , m_midiout(nullptr)
+    , m_midiout2(nullptr)
     , m_midiin(nullptr)
     , m_backendManager(nullptr)
+    , m_backendManager2(nullptr)
     , m_initialized(false)
 #if defined(ENABLE_NATIVE_FILTER)
     , m_filter(nullptr)
@@ -211,6 +213,7 @@ VPiano::~VPiano()
     removeEventFilter(m_eventFilter);
 #endif
     delete m_backendManager;
+    delete m_backendManager2;
 }
 
 void VPiano::initialization()
@@ -236,6 +239,8 @@ bool VPiano::initMidi()
 {
     m_backendManager = new BackendManager();
     m_backendManager->refresh(VPianoSettings::instance()->settingsMap());
+    m_backendManager2 = new BackendManager();
+    m_backendManager2->refresh(VPianoSettings::instance()->settingsMap());
 
     m_midiin = m_backendManager->findInput(VPianoSettings::instance()->lastInputBackend());
     if (m_midiin == nullptr) {
@@ -245,6 +250,12 @@ bool VPiano::initMidi()
     m_midiout = m_backendManager->findOutput(VPianoSettings::instance()->lastOutputBackend());
     if (m_midiout == nullptr) {
         qWarning() << "MIDI OUT driver not available";
+    }
+    if (!VPianoSettings::instance()->lastOutput2Backend().isEmpty()) {
+        m_midiout2 = m_backendManager2->findOutput(VPianoSettings::instance()->lastOutput2Backend());
+        if (m_midiout2 == nullptr) {
+            qWarning() << "Second MIDI OUT driver not available";
+        }
     }
 
     SettingsFactory settings;
@@ -304,10 +315,40 @@ bool VPiano::initMidi()
                 }
             }
         }
-        if (m_midiin != nullptr) {
-            m_midiin->setMIDIThruDevice(m_midiout);
-            m_midiin->enableMIDIThru(VPianoSettings::instance()->midiThru());
+
+    }
+
+    if (m_midiout2 != nullptr) {
+        m_midiout2->initialize(settings.getQSettings());
+        MIDIConnection conn;
+        auto connections = m_midiout2->connections(VPianoSettings::instance()->advanced());
+        auto lastConn = VPianoSettings::instance()->lastOutput2Connection();
+        auto itr = std::find_if(connections.constBegin(), connections.constEnd(), [lastConn](const MIDIConnection& c){return c.first == lastConn;});
+        if (itr == connections.constEnd()) {
+            if (!connections.isEmpty()) {
+                conn = connections.first();
+            }
+        } else {
+            conn = (*itr);
         }
+        m_midiout2->open(conn);
+        auto metaObj = m_midiout2->metaObject();
+        if ((metaObj->indexOfProperty("status") != -1) &&
+            (metaObj->indexOfProperty("diagnostics") != -1)) {
+            auto status = m_midiout2->property("status");
+            if (status.isValid() && !status.toBool()) {
+                auto diagnostics = m_midiout2->property("diagnostics");
+                if (diagnostics.isValid()) {
+                    auto text = diagnostics.toStringList().join(QChar::LineFeed).trimmed();
+                    qWarning() << "MIDI Output 2" << text;
+                }
+            }
+        }
+    }
+
+    if (m_midiin != nullptr && m_midiout != nullptr) {
+        m_midiin->setMIDIThruDevice(m_midiout);
+        m_midiin->enableMIDIThru(VPianoSettings::instance()->midiThru());
     }
 
     return (m_midiout != nullptr);
@@ -823,6 +864,7 @@ void VPiano::writeSettings()
 
     writeDriverSettings(settings.getQSettings(), m_midiin);
     writeDriverSettings(settings.getQSettings(), m_midiout);
+    writeDriverSettings(settings.getQSettings(), m_midiout2);
 
     settings->sync();
 }
@@ -999,7 +1041,10 @@ void VPiano::sendNoteOn(const int midiNote, const int vel)
 {
     if ((midiNote & MASK_SAFETY) == midiNote) {
         int channel = VPianoSettings::instance()->channel();
-        m_midiout->sendNoteOn( channel, midiNote, vel );
+        if (m_midiout != nullptr)
+            m_midiout->sendNoteOn(channel, midiNote, vel);
+        if (m_midiout2 != nullptr)
+            m_midiout2->sendNoteOn(channel, midiNote, vel);
     }
 }
 
@@ -1015,7 +1060,10 @@ void VPiano::sendNoteOff(const int midiNote, const int vel)
 {
     if ((midiNote & MASK_SAFETY) == midiNote) {
         int channel = VPianoSettings::instance()->channel();
-        m_midiout->sendNoteOff( channel, midiNote, vel );
+        if (m_midiout != nullptr)
+            m_midiout->sendNoteOff(channel, midiNote, vel);
+        if (m_midiout2 != nullptr)
+            m_midiout2->sendNoteOff(channel, midiNote, vel);
     }
 }
 
@@ -1030,7 +1078,10 @@ void VPiano::noteOff(const int midiNote, const int vel)
 void VPiano::sendController(const int controller, const int value)
 {
     int channel = VPianoSettings::instance()->channel();
-    m_midiout->sendController( channel, controller, value );
+    if (m_midiout != nullptr)
+        m_midiout->sendController(channel, controller, value);
+    if (m_midiout2 != nullptr)
+        m_midiout2->sendController(channel, controller, value);
 }
 
 void VPiano::resetAllControllers()
@@ -1087,7 +1138,10 @@ void VPiano::allNotesOff()
 void VPiano::sendProgramChange(const int program)
 {
     int channel = VPianoSettings::instance()->channel();
-    m_midiout->sendProgram( channel, program );
+    if (m_midiout != nullptr)
+        m_midiout->sendProgram(channel, program);
+    if (m_midiout2 != nullptr)
+        m_midiout2->sendProgram(channel, program);
 }
 
 void VPiano::sendBankChange(const int bank)
@@ -1117,19 +1171,28 @@ void VPiano::sendBankChange(const int bank)
 void VPiano::sendPolyKeyPress(const int note, const int value)
 {
     int channel = VPianoSettings::instance()->channel();
-    m_midiout->sendKeyPressure( channel, note, value );
+    if (m_midiout != nullptr)
+        m_midiout->sendKeyPressure(channel, note, value);
+    if (m_midiout2 != nullptr)
+        m_midiout2->sendKeyPressure(channel, note, value);
 }
 
 void VPiano::sendChanKeyPress(const int value)
 {
     int channel = VPianoSettings::instance()->channel();
-    m_midiout->sendChannelPressure( channel, value );
+    if (m_midiout != nullptr)
+        m_midiout->sendChannelPressure(channel, value);
+    if (m_midiout2 != nullptr)
+        m_midiout2->sendChannelPressure(channel, value);
 }
 
 void VPiano::sendBender(const int value)
 {
     int channel = VPianoSettings::instance()->channel();
-    m_midiout->sendPitchBend( channel, value );
+    if (m_midiout != nullptr)
+        m_midiout->sendPitchBend(channel, value);
+    if (m_midiout2 != nullptr)
+        m_midiout2->sendPitchBend(channel, value);
 }
 
 void VPiano::slotPanic()
@@ -1150,7 +1213,10 @@ void VPiano::slotResetBender()
 
 void VPiano::sendSysex(const QByteArray& data)
 {
-    m_midiout->sendSysex( data );
+    if (m_midiout != nullptr)
+        m_midiout->sendSysex(data);
+    if (m_midiout2 != nullptr)
+        m_midiout2->sendSysex(data);
 }
 
 void VPiano::slotControlClicked(const bool boolValue)
@@ -1263,8 +1329,10 @@ void VPiano::slotConnections()
     QPointer<MidiSetup> dlgMidiSetup = new MidiSetup(this);
     dlgMidiSetup->setInputs(m_backendManager->availableInputs());
     dlgMidiSetup->setOutputs(m_backendManager->availableOutputs());
+    dlgMidiSetup->setOutputs2(m_backendManager2->availableOutputs());
     dlgMidiSetup->setInput(m_midiin);
     dlgMidiSetup->setOutput(m_midiout);
+    dlgMidiSetup->setOutput2(m_midiout2);
     releaseKb();
     if (dlgMidiSetup->exec() == QDialog::Accepted) {
         if (m_midiin != nullptr) {
@@ -1273,8 +1341,12 @@ void VPiano::slotConnections()
         if (m_midiout != nullptr) {
             m_midiout->disconnect();
         }
+        if (m_midiout2 != nullptr) {
+            m_midiout2->disconnect();
+        }
         m_midiin = dlgMidiSetup->getInput();
         m_midiout = dlgMidiSetup->getOutput();
+        m_midiout2 = dlgMidiSetup->getOutput2();
         connectMidiInSignals();
         enforceMIDIChannelState();
     }

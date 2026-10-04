@@ -212,8 +212,10 @@ void VPianoSettings::internalRead(QSettings &settings)
     m_advanced = settings.value(QSTR_ADVANCEDENABLED, false).toBool();
     m_lastInputBackend = settings.value(QSTR_INDRIVER).toString();
     m_lastOutputBackend = settings.value(QSTR_OUTDRIVER).toString();
+    m_lastOutput2Backend = settings.value(QSTR_OUTDRIVER2).toString();
     m_lastInputConnection = settings.value(QSTR_INPORT).toString();
     m_lastOutputConnection = settings.value(QSTR_OUTPORT).toString();
+    m_lastOutput2Connection = settings.value(QSTR_OUTPORT2).toString();
     settings.endGroup();
 
     bool mouseInputEnabledbyDefault = true;
@@ -317,8 +319,10 @@ void VPianoSettings::internalSave(QSettings &settings)
     settings.setValue(QSTR_ADVANCEDENABLED, m_advanced);
     settings.setValue(QSTR_INDRIVER, m_lastInputBackend);
     settings.setValue(QSTR_OUTDRIVER, m_lastOutputBackend);
+    settings.setValue(QSTR_OUTDRIVER2, m_lastOutput2Backend);
     settings.setValue(QSTR_INPORT, m_lastInputConnection);
     settings.setValue(QSTR_OUTPORT, m_lastOutputConnection);
+    settings.setValue(QSTR_OUTPORT2, m_lastOutput2Connection);
     settings.endGroup();
 
     settings.beginGroup(QSTR_PREFERENCES);
@@ -663,6 +667,26 @@ void VPianoSettings::setLastInputConnection(const QString &lastInputConnection)
 QString VPianoSettings::lastOutputBackend() const
 {
     return m_lastOutputBackend;
+}
+
+QString VPianoSettings::lastOutput2Backend() const
+{
+    return m_lastOutput2Backend;
+}
+
+void VPianoSettings::setLastOutput2Backend(const QString &lastOutputBackend)
+{
+    m_lastOutput2Backend = lastOutputBackend;
+}
+
+QString VPianoSettings::lastOutput2Connection() const
+{
+    return m_lastOutput2Connection;
+}
+
+void VPianoSettings::setLastOutput2Connection(const QString &lastOutputConnection)
+{
+    m_lastOutput2Connection = lastOutputConnection;
 }
 
 void VPianoSettings::setLastOutputBackend(const QString &lastOutputBackend)

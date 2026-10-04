@@ -234,8 +234,10 @@ private:
     void retranslateToolbars();
 
     drumstick::rt::MIDIOutput* m_midiout;
+    drumstick::rt::MIDIOutput* m_midiout2;
     drumstick::rt::MIDIInput* m_midiin;
     drumstick::rt::BackendManager* m_backendManager;
+    drumstick::rt::BackendManager* m_backendManager2;
 
     bool m_initialized;
 
